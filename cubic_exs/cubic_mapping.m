@@ -5,7 +5,7 @@
 % (discrete time dynamical system) before creating dictionary matrix.
 % Uses cubic model for tensorized basis functions.
 
-% Zachary Singer, Carnegie Mellon University 2/6/17
+% Zachary Singer, 4/8/17
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% CONSTANTS / SETUP %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -24,8 +24,7 @@ a = -1;
 b = 1;
 anor = a*ones(NumIC*SizeOfBurst, n);
 bnor = b*ones(NumIC*SizeOfBurst, n);
-% X_0 = (b-a)*rand(NumIC, n) + a;
-X_0 = reshape(trandn(anor, bnor), NumIC*SizeOfBurst, n);
+X_0 = (b-a)*rand(NumIC, n) + a;
 
         rng default  % For reproducibility
         p = haltonset(n, 'Skip',1e3,'Leap', 1e2); % retains every 101st val
@@ -198,28 +197,19 @@ end
 
 %%%%%%%%%% GENERATE DICTIONARY AND SOLVE OPTIMIZATION PROBLEM %%%%%%%%%%
 
-% spgl1 parameters
-opts = [];
-opts.verbosity = 0; 
-opts.iterations = 1000;
-
 [D, S, M, max_phi] = dictionary_cubic(Xfull, SizeOfBurst, a, b);       
 
 noise = 0.01;
 b1 = Xsome(:, optEquation) + noise*max(Xsome(:, optEquation)) ...
      * randn(SizeOfBurst*NumIC, 1);
- 
-% sigma = 0.9.*norm(b1-Xfull(:,optEquation), 2);
+
 sigma = 0.2; 
 
 Dnormalized = D ./ repmat(sqrt(sum(D.^2,1)),size(D,1),1);
-% c1 = spgl1(Dnormalized, b1, 0, sigma, [], opts);
-% c1 = c1 ./ (sqrt(sum(D.^2,1)))';
 
 c2 = DouglasRachford(Dnormalized, b1, sigma, 0.1, 0.1, 5000, 0.01);
 c2 = c2 ./ (sqrt(sum(D.^2,1)))';
 
-% soln1 = M' * c1;
 soln2 = M' * c2;
 
 c = c2;
@@ -232,22 +222,12 @@ debiased_soln = S(:, find(soln)) \ b1;
 
 set(gcf, 'Position', [100, 800, 600, 600])
 set(0, 'defaulttextinterpreter', 'latex')
-% subplot(1,2,1);
-% plot(soln1,'o')
-% title(['Recovered coeff. from spgl1'], 'FontSize', 20)
-% subplot(1,2,2);
-% plot(soln2, 'o')
-% title(['Recovered coeff. from DR'], 'FontSize', 20)
 
 plot(soln2, 'o', 'MarkerSize', 8, 'LineWidth', 3)
 hold on
 plot(sparse(c_true_mat(:, optEquation)), 'x', 'MarkerSize', 8, 'LineWidth', 3, 'Color', 'red')
 
 legend({'Recovered Solutions', 'True Solutions'}, 'Location', 'northeast', 'FontSize', 24)
-
-% title(['Solution of recovered coefficients, $$n =$$ ' num2str(n)], ...
-%       'FontSize', 20)
-
 
 display(['True coefficients using component ', num2str(optEquation)])
 sparse(c_true_mat(:,optEquation))
@@ -257,7 +237,6 @@ sparse(soln)
 
 display(['Debiased coefficients using component  ', num2str(optEquation)])
 sparse(debiased_soln)
-
 
 display(['K boundedness coefficient:  ', num2str(max_phi)])    
 
